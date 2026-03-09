@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  employeeId    String    @unique
+  name          String
+  email         String?   @unique
+  password      String
+  role          String    @default("DRIVER") // DRIVER, ADMIN, MANAGER
+  phone         String?
+  licenseNumber String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  attendances   Attendance[]
+  dailyReports  DailyReport[]
+}
+
+model Attendance {
+  id          String    @id @default(cuid())
+  userId      String
+  date        String    // YYYY-MM-DD
+  clockIn     DateTime?
+  clockOut    DateTime?
+  breakStart  DateTime?
+  breakEnd    DateTime?
+  status      String    @default("PRESENT") // PRESENT, ABSENT, LATE, HALF_DAY, HOLIDAY
+  overtime    Float     @default(0)
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+}
+
+model DailyReport {
+  id              String   @id @default(cuid())
+  userId          String
+  date            String   // YYYY-MM-DD
+  vehicleNumber   String?
+  loadingSite     String?
+  unloadingSite   String?
+  trips           Int      @default(0)
+  material        String?
+  distance        Float?
+  fuelAmount      Float?
+  note            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+}
+
+model Holiday {
+  id        String   @id @default(cuid())
+  date      String   @unique // YYYY-MM-DD
+  name      String
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
