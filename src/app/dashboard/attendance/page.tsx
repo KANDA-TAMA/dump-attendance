@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +35,8 @@ const DRIVING_HOURS_OPTIONS = Array.from({ length: 33 }, (_, i) => {
 });
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
-const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+// 分は 30 分刻みのみ選択可能にする
+const MINUTES = ["00", "30"];
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -42,33 +44,39 @@ function TimeInput24({
   value,
   onChange,
   id,
+  disabled = false,
 }: {
   value: string;
   onChange: (val: string) => void;
   id: string;
+  disabled?: boolean;
 }) {
   const [h, m] = value ? value.split(":") : ["", ""];
   const hour = h || "";
   const minute = m || "";
 
   const handleChange = (newH: string, newM: string) => {
-    if (newH && newM) {
-      onChange(`${newH}:${newM}`);
-    } else if (!newH && !newM) {
+    if (disabled) return;
+    // どちらか一方でも「--」が選ばれたら、時刻を完全にクリアする
+    if (!newH || !newM) {
       onChange("");
+      return;
     }
+    onChange(`${newH}:${newM}`);
   };
 
   const selectClass =
     "flex h-10 rounded-md border border-input bg-background px-2 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  const disabledClass = disabled ? "opacity-60 cursor-not-allowed" : "";
 
   return (
-    <div className="flex items-center gap-1">
+    <div className={`flex items-center gap-1 ${disabledClass}`}>
       <select
         id={id}
         className={`${selectClass} w-[70px]`}
         value={hour}
         onChange={(e) => handleChange(e.target.value, minute || "00")}
+        disabled={disabled}
       >
         <option value="">--</option>
         {HOURS.map((hh) => (
@@ -80,6 +88,7 @@ function TimeInput24({
         className={`${selectClass} w-[70px]`}
         value={minute}
         onChange={(e) => handleChange(hour || "00", e.target.value)}
+        disabled={disabled}
       >
         <option value="">--</option>
         {MINUTES.map((mm) => (
@@ -141,6 +150,7 @@ function formatDateJP(dateStr: string): string {
 }
 
 export default function AttendancePage() {
+  const { data: session, status } = useSession();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(toDateStr(new Date()));
   const [attendance, setAttendance] = useState<AttendanceData | null>(null);
@@ -170,11 +180,12 @@ export default function AttendancePage() {
         const data = await res.json();
         if (data) {
           setAttendance(data);
+          const isHoliday = data.category === "HOLIDAY";
           setForm({
             category: data.category || "WORK1",
-            clockInRaw: data.clockInRaw || (date === toDateStr(new Date()) ? getNowHHMM() : ""),
-            clockOutRaw: data.clockOutRaw || "",
-            drivingHours: (data.drivingHours ?? 0).toString(),
+            clockInRaw: isHoliday ? "" : (data.clockInRaw || (date === toDateStr(new Date()) ? getNowHHMM() : "")),
+            clockOutRaw: isHoliday ? "" : (data.clockOutRaw || ""),
+            drivingHours: isHoliday ? "0" : (data.drivingHours ?? 0).toString(),
             breakHours: (data.breakHours ?? 1).toString(),
             note: data.note || "",
           });
@@ -287,6 +298,27 @@ export default function AttendancePage() {
 
   const categoryLabel = (val: string) =>
     CATEGORIES.find((c) => c.value === val)?.label || val;
+
+  // ロールチェック：運転手以外（管理者・運行管理者など）はこのページで出勤簿入力できない
+  if (status === "loading") {
+    return (
+      <div className="py-8 text-center text-muted-foreground">
+        認証情報を確認しています...
+      </div>
+    );
+  }
+
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  if (!session || role !== "DRIVER") {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">出勤簿入力</h1>
+        <p className="text-sm text-muted-foreground">
+          出勤簿の入力は運転手のみが対象です。管理者・運行管理者は「勤怠承認」「月次集計」画面からご確認ください。
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -433,7 +465,18 @@ export default function AttendancePage() {
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={form.category}
               onChange={(e) => {
-                setForm({ ...form, category: e.target.value });
+                const newCategory = e.target.value;
+                if (newCategory === "HOLIDAY") {
+                  setForm({
+                    ...form,
+                    category: newCategory,
+                    clockInRaw: "",
+                    clockOutRaw: "",
+                    drivingHours: "0",
+                  });
+                } else {
+                  setForm({ ...form, category: newCategory });
+                }
                 setSaved(false);
               }}
             >
@@ -456,6 +499,7 @@ export default function AttendancePage() {
                   setForm({ ...form, clockInRaw: val });
                   setSaved(false);
                 }}
+                disabled={form.category === "HOLIDAY"}
               />
               {attendance?.clockInRounded && (
                 <p className="text-xs text-muted-foreground">
@@ -472,6 +516,7 @@ export default function AttendancePage() {
                   setForm({ ...form, clockOutRaw: val });
                   setSaved(false);
                 }}
+                disabled={form.category === "HOLIDAY"}
               />
               {attendance?.clockOutRounded && (
                 <p className="text-xs text-muted-foreground">
@@ -487,12 +532,14 @@ export default function AttendancePage() {
               <Label htmlFor="drivingHours">運転時間</Label>
               <select
                 id="drivingHours"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={form.drivingHours}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
+                value={form.category === "HOLIDAY" ? "0" : form.drivingHours}
                 onChange={(e) => {
+                  if (form.category === "HOLIDAY") return;
                   setForm({ ...form, drivingHours: e.target.value });
                   setSaved(false);
                 }}
+                disabled={form.category === "HOLIDAY"}
               >
                 {DRIVING_HOURS_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
