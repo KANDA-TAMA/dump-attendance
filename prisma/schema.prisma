@@ -4,8 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("POSTGRES_PRISMA_URL") // Vercelが自動で作ってくれた名前に合わせます
-  directUrl = env("POSTGRES_URL_NON_POOLING") // これもVercelが作ってくれます
+  url      = env("DATABASE_URL")
 }
 
 model User {
