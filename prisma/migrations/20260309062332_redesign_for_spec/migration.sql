@@ -18,34 +18,26 @@ CREATE TABLE "Attendance" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
     "date" TEXT NOT NULL,
-    "clockIn" DATETIME,
-    "clockOut" DATETIME,
-    "breakStart" DATETIME,
-    "breakEnd" DATETIME,
-    "status" TEXT NOT NULL DEFAULT 'PRESENT',
-    "overtime" REAL NOT NULL DEFAULT 0,
+    "dayOfWeek" TEXT,
+    "clockInRaw" TEXT,
+    "clockOutRaw" TEXT,
+    "category" TEXT NOT NULL DEFAULT 'WORK1',
+    "clockInRounded" TEXT,
+    "clockOutRounded" TEXT,
+    "drivingHours" REAL NOT NULL DEFAULT 0,
+    "loadingHours" REAL NOT NULL DEFAULT 0,
+    "breakHours" REAL NOT NULL DEFAULT 1.0,
+    "actualHours" REAL NOT NULL DEFAULT 0,
+    "overtimeHours" REAL NOT NULL DEFAULT 0,
+    "approvalStatus" TEXT NOT NULL DEFAULT 'PENDING',
+    "approvedBy" TEXT,
+    "approvedAt" DATETIME,
+    "approvalNote" TEXT,
     "note" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Attendance_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
-);
-
--- CreateTable
-CREATE TABLE "DailyReport" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "userId" TEXT NOT NULL,
-    "date" TEXT NOT NULL,
-    "vehicleNumber" TEXT,
-    "loadingSite" TEXT,
-    "unloadingSite" TEXT,
-    "trips" INTEGER NOT NULL DEFAULT 0,
-    "material" TEXT,
-    "distance" REAL,
-    "fuelAmount" REAL,
-    "note" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "DailyReport_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "Attendance_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Attendance_approvedBy_fkey" FOREIGN KEY ("approvedBy") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -53,6 +45,7 @@ CREATE TABLE "Holiday" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "date" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "holidayType" TEXT NOT NULL DEFAULT 'LEGAL',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -72,9 +65,6 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Attendance_userId_date_key" ON "Attendance"("userId", "date");
-
--- CreateIndex
-CREATE UNIQUE INDEX "DailyReport_userId_date_key" ON "DailyReport"("userId", "date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Holiday_date_key" ON "Holiday"("date");

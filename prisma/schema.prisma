@@ -1,10 +1,10 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -20,54 +20,90 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  attendances   Attendance[]
-  dailyReports  DailyReport[]
+  attendances              Attendance[]
+  approvedRecords          Attendance[]  @relation("Approver")
+  managerNotificationSetting ManagerNotificationSetting?
+  dayApprovalCompletions   DayApprovalCompletion[]
 }
 
 model Attendance {
-  id          String    @id @default(cuid())
-  userId      String
-  date        String    // YYYY-MM-DD
-  clockIn     DateTime?
-  clockOut    DateTime?
-  breakStart  DateTime?
-  breakEnd    DateTime?
-  status      String    @default("PRESENT") // PRESENT, ABSENT, LATE, HALF_DAY, HOLIDAY
-  overtime    Float     @default(0)
-  note        String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  user        User      @relation(fields: [userId], references: [id])
-
-  @@unique([userId, date])
-}
-
-model DailyReport {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   userId          String
-  date            String   // YYYY-MM-DD
-  vehicleNumber   String?
-  loadingSite     String?
-  unloadingSite   String?
-  trips           Int      @default(0)
-  material        String?
-  distance        Float?
-  fuelAmount      Float?
-  note            String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  date            String    // YYYY-MM-DD
+  dayOfWeek       String?   // 月,火,水...
 
-  user            User     @relation(fields: [userId], references: [id])
+  // 項目3: 打刻された生の出勤時刻 (HH:mm)
+  clockInRaw      String?
+  // 項目3: 打刻された生の退勤時刻 (HH:mm)
+  clockOutRaw     String?
+
+  // 項目4: 区分
+  // WORK1=出勤①(6:30-15:30), WORK2=出勤②(8:00-17:00),
+  // LEGAL_HOLIDAY=法定休日出勤, PRESCRIBED_HOLIDAY=所定休日出勤,
+  // PAID_LEAVE=有給, AM_LEAVE=午前有給, PM_LEAVE=午後有給,
+  // ABSENT=欠勤, HOLIDAY=休日, SPECIAL_LEAVE=特休
+  category        String    @default("WORK1")
+
+  // 項目5: 給与計算用出勤時刻 (30分丸め後 HH:mm)
+  clockInRounded  String?
+  // 項目6: 給与計算用退勤時刻 (30分丸め後 HH:mm)
+  clockOutRounded String?
+
+  // 項目7: 運転時間 (時間単位, 0.5刻み)
+  drivingHours    Float     @default(0)
+
+  // 項目8: 荷役時間 = 実働時間 - 運転時間 (自動計算)
+  loadingHours    Float     @default(0)
+
+  // 項目9: 休憩時間 (時間単位, デフォルト1.0)
+  breakHours      Float     @default(1.0)
+
+  // 項目10: 実働時間 = 退勤時刻 - 出勤時刻 - 休憩時間 (自動計算)
+  actualHours     Float     @default(0)
+
+  // 残業時間 (自動計算)
+  overtimeHours   Float     @default(0)
+
+  // 早朝残業時間 (所定開始前の勤務, 自動計算)
+  earlyOvertimeHours Float  @default(0)
+
+  // 遅刻時間 (分, 自動計算)
+  lateMinutes     Float     @default(0)
+
+  // 早退時間 (分, 自動計算)
+  earlyLeaveMinutes Float   @default(0)
+
+  // Excel列Q: 平均(対上行) = 前日の運転時間（時間単位）
+  avgDrivingUpper   Float?
+  // Excel列R: 平均(対下行) = 当日と翌日の運転時間の平均
+  avgDrivingLower   Float?
+  // Excel列S: 平均の下限値 = min(Q, R)
+  avgDrivingMin     Float?
+  // Excel列T: 判定 = S > 9時間なら NG、それ以外 OK（9/24は9時間の閾値）
+  drivingJudgment   String? // OK | NG
+
+  // 承認フロー
+  approvalStatus  String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedBy      String?
+  approvedAt      DateTime?
+  approvalNote    String?
+
+  note            String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id])
+  approver        User?     @relation("Approver", fields: [approvedBy], references: [id])
 
   @@unique([userId, date])
 }
 
 model Holiday {
-  id        String   @id @default(cuid())
-  date      String   @unique // YYYY-MM-DD
-  name      String
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  date        String   @unique // YYYY-MM-DD
+  name        String
+  holidayType String   @default("LEGAL") // LEGAL=法定休日, PRESCRIBED=所定休日
+  createdAt   DateTime @default(now())
 }
 
 model Setting {
@@ -75,4 +111,56 @@ model Setting {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// 締め月ごとの対象期間（未設定の場合は CLOSING_DAY から自動計算）
+model PeriodSetting {
+  id        String   @id @default(cuid())
+  year      Int
+  month     Int
+  startDate String   // YYYY-MM-DD
+  endDate   String   // YYYY-MM-DD
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([year, month])
+}
+
+// 運行管理者のメール通知設定（優先順位付き）
+model ManagerNotificationSetting {
+  id        String   @id @default(cuid())
+  userId    String   @unique  // 運行管理者のUser ID
+  email     String
+  priority  Int      @default(1)  // 1=最優先、小さいほど優先
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 当日の全承認完了記録（誰か1人が完了したら他にはメールを飛ばさない）
+model DayApprovalCompletion {
+  id          String   @id @default(cuid())
+  date        String   @unique  // YYYY-MM-DD
+  completedBy String
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [completedBy], references: [id], onDelete: Cascade)
+}
+
+// 対象期間の勤怠全承認完了時の通知送信済み記録（重複送信を防ぐ）
+model PeriodApprovalCompletionNotification {
+  id          String   @id @default(cuid())
+  periodStart String   // YYYY-MM-DD
+  periodEnd   String   // YYYY-MM-DD
+  notifiedAt  DateTime @default(now())
+
+  @@unique([periodStart, periodEnd])
+}
+
+// 日次：その日の全運転手の保存完了時の通知送信済み記録（重複送信を防ぐ）
+model DayDriverSaveCompletionNotification {
+  id        String   @id @default(cuid())
+  date      String   @unique  // YYYY-MM-DD
+  notifiedAt DateTime @default(now())
 }
