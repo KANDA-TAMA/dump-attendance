@@ -16,6 +16,7 @@ model User {
   role          String    @default("DRIVER") // DRIVER, ADMIN, MANAGER
   phone         String?
   licenseNumber String?
+  cardNumber    String?
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

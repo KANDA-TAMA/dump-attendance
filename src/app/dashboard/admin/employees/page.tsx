@@ -33,6 +33,7 @@ interface User {
   name: string;
   role: string;
   phone: string | null;
+  cardNumber: string | null;
   isActive: boolean;
 }
 
@@ -41,6 +42,7 @@ const emptyForm = {
   name: "",
   role: "DRIVER",
   phone: "",
+  cardNumber: "",
   password: "",
 };
 
@@ -88,6 +90,7 @@ export default function EmployeesPage() {
       name: user.name,
       role: user.role,
       phone: user.phone || "",
+      cardNumber: user.cardNumber || "",
       password: "",
     });
     setEditingId(user.id);
@@ -235,6 +238,15 @@ export default function EmployeesPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="cardNumber">カード番号（汎用ソフト用）</Label>
+                  <Input
+                    id="cardNumber"
+                    value={form.cardNumber}
+                    onChange={(e) => setForm({ ...form, cardNumber: e.target.value })}
+                    placeholder="例: 12874686"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="password">
                     パスワード {editingId ? "(変更する場合のみ)" : "*"}
                   </Label>
@@ -287,6 +299,7 @@ export default function EmployeesPage() {
                     <TableHead>氏名</TableHead>
                     <TableHead>権限</TableHead>
                     <TableHead>電話番号</TableHead>
+                    <TableHead>カード番号</TableHead>
                     <TableHead>状態</TableHead>
                     <TableHead>操作</TableHead>
                   </TableRow>
@@ -302,6 +315,7 @@ export default function EmployeesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>{u.phone || "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{u.cardNumber || "-"}</TableCell>
                       <TableCell>
                         {u.isActive ? (
                           <Badge variant="default">有効</Badge>

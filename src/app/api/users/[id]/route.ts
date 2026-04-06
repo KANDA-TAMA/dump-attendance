@@ -12,7 +12,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const body = await req.json();
-  const { name, employeeId, role, phone, licenseNumber, email, password, isActive } = body;
+  const { name, employeeId, role, phone, licenseNumber, email, cardNumber, password, isActive } = body;
 
   try {
     const data: Record<string, unknown> = {};
@@ -22,13 +22,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (phone !== undefined) data.phone = phone || null;
     if (licenseNumber !== undefined) data.licenseNumber = licenseNumber || null;
     if (email !== undefined) data.email = email || null;
+    if (cardNumber !== undefined) data.cardNumber = cardNumber || null;
     if (isActive !== undefined) data.isActive = isActive;
     if (password) data.password = await hash(password, 12);
 
     const user = await prisma.user.update({
       where: { id },
       data,
-      select: { id: true, employeeId: true, name: true, role: true, phone: true, licenseNumber: true, email: true, isActive: true },
+      select: { id: true, employeeId: true, name: true, role: true, phone: true, licenseNumber: true, email: true, cardNumber: true, isActive: true },
     });
 
     return NextResponse.json(user);

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     where,
     select: {
       id: true, employeeId: true, name: true, role: true,
-      phone: true, licenseNumber: true, email: true, isActive: true,
+      phone: true, licenseNumber: true, email: true, cardNumber: true, isActive: true,
       createdAt: true,
     },
     orderBy: { employeeId: "asc" },
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { employeeId, name, role, phone, licenseNumber, email, password } = body;
+  const { employeeId, name, role, phone, licenseNumber, email, cardNumber, password } = body;
 
   if (!employeeId || !name || !password) {
     return NextResponse.json({ error: "社員番号・氏名・パスワードは必須です" }, { status: 400 });
@@ -62,11 +62,12 @@ export async function POST(req: NextRequest) {
         phone: phone || null,
         licenseNumber: licenseNumber || null,
         email: email || null,
+        cardNumber: cardNumber || null,
         password: hashedPassword,
       },
       select: {
         id: true, employeeId: true, name: true, role: true,
-        phone: true, licenseNumber: true, email: true, isActive: true,
+        phone: true, licenseNumber: true, email: true, cardNumber: true, isActive: true,
       },
     });
 

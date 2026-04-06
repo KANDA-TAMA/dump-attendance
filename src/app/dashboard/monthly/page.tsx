@@ -173,6 +173,29 @@ export default function MonthlyPage() {
     }
   };
 
+  const handleExportCsv = async () => {
+    if (!data || data.attendances.length === 0) return;
+    const params = new URLSearchParams({ year: year.toString(), month: month.toString() });
+    if (canSelectUser && selectedUserId) params.set("userId", selectedUserId);
+    try {
+      const res = await fetch(`/api/attendance/export-csv?${params}`);
+      if (!res.ok) throw new Error("CSV出力に失敗しました");
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition");
+      const match = disposition?.match(/filename\*=UTF-8''(.+)/);
+      const filename = match ? decodeURIComponent(match[1]) : `勤怠data_${year}年${month}月締め.csv`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("CSV出力に失敗しました");
+    }
+  };
+
   const totals = data ? calcTotals(data.attendances) : null;
 
   return (
@@ -229,6 +252,9 @@ export default function MonthlyPage() {
           <RecalcDrivingAvgButton />
           <Button variant="outline" onClick={handleExportExcel} disabled={!data || data.attendances.length === 0}>
             📥 Excel出力
+          </Button>
+          <Button variant="outline" onClick={handleExportCsv} disabled={!data || data.attendances.length === 0}>
+            📋 CSV出力（汎用ソフト用）
           </Button>
         </CardContent>
       </Card>
