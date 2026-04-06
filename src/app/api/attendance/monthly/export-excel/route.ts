@@ -365,7 +365,7 @@ function buildSheetFromTemplate(
   ws.getRow(r51).getCell(3).value = "実労働時間";
   ws.getRow(r51).getCell(4).value = "実労働時間";
   ws.getRow(r51).getCell(5).value = {
-    formula: `COUNTIF(${rangeC},"出勤①")*8/24+COUNTIF(${rangeC},"出勤②")*8/24-${e50}*8/24`,
+    formula: `COUNTIF(${rangeC},"出勤①")*8/24+COUNTIF(${rangeC},"出勤②")*8/24-${e50}*8/24+J${r48}`,
   };
   ws.getRow(r51).getCell(7).value = "所定休日勤務時間";
   ws.getRow(r51).getCell(8).value = "所定休日勤務時間";

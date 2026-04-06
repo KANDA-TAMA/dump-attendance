@@ -152,7 +152,7 @@ export async function GET(req: NextRequest) {
     const dayTypeCode = getDayTypeCode(a.category, a.date);
     const absenceReason = getAbsenceReason(a.category);
     const prescribedHours = getPrescribedHours(a.category);
-    const earlyOT = a.earlyOvertimeHours ?? 0;
+    const overtimeH = a.overtimeHours ?? 0;
     const legalHolidayH = getLegalHolidayHours(a.category, a.actualHours);
     const prescHolidayH = getPrescribedHolidayHours(a.category, a.actualHours);
     const lateEarlyH = getLateEarlyHours(a.lateMinutes ?? 0, a.earlyLeaveMinutes ?? 0);
@@ -180,7 +180,7 @@ export async function GET(req: NextRequest) {
       0,                                 // 例外２マーク
       prescribedHours,                   // 所定内時間
       0,                                 // 延長時間（汎用ソフト未使用）
-      earlyOT,                           // 早出残業
+      overtimeH,                           // 早出残業（実態は残業時間）
       0,                                 // 深夜時間
       0,                                 // 深夜残業
       legalHolidayH,                     // 休１時間（法定休日の実働時間）
