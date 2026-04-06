@@ -38,9 +38,9 @@ function getLateEarlyHours(lateMinutes: number, earlyLeaveMinutes: number): numb
 // 不在理由
 function getAbsenceReason(category: string): string | null {
   const map: Record<string, string> = {
-    PAID_LEAVE: "有休",
-    AM_LEAVE: "午前有休",
-    PM_LEAVE: "午後有休",
+    PAID_LEAVE: "有給",
+    AM_LEAVE: "午前有給",
+    PM_LEAVE: "午後有給",
     ABSENT: "欠勤",
     SPECIAL_LEAVE: "特休",
   };
